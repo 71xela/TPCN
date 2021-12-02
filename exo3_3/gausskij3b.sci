@@ -8,6 +8,6 @@ function [x] = gausskij3b(A,b)
             end
         end
     end
-    exec("usolve.sci",-1)
+    exec("exo3_2/usolve.sci",-1)
     [x] = usolve(A,b)
 endfunction
