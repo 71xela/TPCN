@@ -5,6 +5,7 @@
 /**********************************************/
 #include "lib_poisson1D.h"
 
+// Affiche AB configuré en row major
 void print_rowMajor(double *AB, int *lab, int *la)
 {
     for(int i = 0; i < *lab; i++)
@@ -15,6 +16,7 @@ void print_rowMajor(double *AB, int *lab, int *la)
     }
 }
 
+// Affiche AB configuré en column major
 void print_colMajor(double *AB, int *lab, int *la)
 {
     for(int i = 0; i < *lab; i++)
@@ -25,6 +27,7 @@ void print_colMajor(double *AB, int *lab, int *la)
     printf("\n");
 }
 
+// Initialise matrice de Poisson 1D en row major
 void set_GB_operator_rowMajor_poisson1D(double *AB, int *lab, int *la, int *kv)
 {
     for (int j = 0; j < *la; j++)
@@ -40,7 +43,7 @@ void set_GB_operator_rowMajor_poisson1D(double *AB, int *lab, int *la, int *kv)
     AB[*lab * *la - 1] = 0.0;
 }
 
-// Initialise matrice de Poisson 1D en colonne 1D
+// Initialise matrice de Poisson 1D en column major
 void set_GB_operator_colMajor_poisson1D(double *AB, int *lab, int *la, int *kv)
 {
     int kk;
@@ -61,22 +64,23 @@ void set_GB_operator_colMajor_poisson1D(double *AB, int *lab, int *la, int *kv)
     AB[*lab * *la - 1] = 0.0;
 }
 
+// Initialise matrice identié de Poisson 1D en column major
 void set_GB_operator_colMajor_poisson1D_Id(double *AB, int *lab, int *la, int *kv)
 {
-  int ii, jj, kk;
-  for (jj=0;jj<(*la);jj++){
-    kk = jj*(*lab);
-    if (*kv>=0){
-      for (ii=0;ii< *kv;ii++){
-	AB[kk+ii]=0.0;
-      }
+    int k;
+    for (int j = 0; j < *la; j++)
+    {
+        k = j * *lab;
+        if(*kv >= 0)
+            for (int i = 0; i < *kv; i++)
+                AB[k + i] = 0.0;
+
+        AB[k + *kv] = 0.0;
+        AB[k + *kv+1] = 1.0;
+        AB[k + *kv+2] = 0.0;
     }
-    AB[kk+ *kv]=0.0;
-    AB[kk+ *kv+1]=1.0;
-    AB[kk+ *kv+2]=0.0;
-  }
-  AB[1]=0.0;
-  AB[(*lab)*(*la)-1]=0.0;
+    AB[1] = 0.0;
+    AB[*lab * *la - 1] = 0.0;
 }
 
 // Initialisation vecteur f
@@ -105,36 +109,48 @@ void set_grid_points_1D(double *x, int *la)
         x[i] = (i + 1) * h;
 }
 
+// Ecrit la matrice AB en row major dans un fichier .dat
 void write_GB_operator_rowMajor_poisson1D(double *AB, int *lab, int *la, char *filename)
 {
-  FILE * file;
-  int ii,jj;
-  file = fopen(filename, "w");
-  //Numbering from 1 to la
-  if (file != NULL){
-    for (ii=0;ii<(*lab);ii++){
-      for (jj=0;jj<(*la);jj++){
-	fprintf(file,"%lf\t",AB[ii*(*la)+jj]);
-      }
-      fprintf(file,"\n");
+    FILE *file = fopen(filename, "w");
+    //Numbering from 1 to la
+    if (file != NULL)
+    {
+        for (int i = 0; i < *lab; i++)
+        {
+            for (int j = 0; j < *la; j++)
+                fprintf(file, "%lf\t", AB[i * *la + j]);
+            fprintf(file, "\n");
+        }
+        fclose(file);
     }
-    fclose(file);
-  }
-  else{
-    perror(filename);
-  }
+    else
+        perror(filename);
 }
 
+// Ecrit la matrice AB en column major dans uhn fichier .dat
 void write_GB_operator_colMajor_poisson1D(double *AB, int *lab, int *la, char *filename)
 {
-  //TODO
+    FILE *file = fopen(filename, "w");
+    //Numbering from 1 to la
+    if (file != NULL)
+    {
+        for (int i = 0; i < *lab; i++)
+        {
+            for (int j = 0; j < *la; j++)
+                fprintf(file,"%lf\t",AB[j * *lab + i]);
+            fprintf(file,"\n");
+        }
+        fclose(file);
+    }
+    else
+        perror(filename);
 }
 
 // Écrit le vecteur dans un fichier .dat
 void write_vec(double *vec, int *la, char *filename)
 {
-    FILE * file;
-    file = fopen(filename, "w");
+    FILE *file = fopen(filename, "w");
     // Numbering from 1 to la
     if(file != NULL){
         for (int i = 0; i < *la; i++)
@@ -143,8 +159,23 @@ void write_vec(double *vec, int *la, char *filename)
     }
     else
         perror(filename);
-}  
+}
 
+// Écrit le vecteur en écriture scientifique dans un fichier .dat
+void write_vec_sci(double *vec, int *la, char *filename)
+{
+    FILE * file = fopen(filename, "w");
+    // Numbering from 1 to la
+    if(file != NULL){
+        for (int i = 0; i < *la; i++)
+            fprintf(file,"%e\n", vec[i]);
+        fclose(file);
+    }
+    else
+        perror(filename);
+} 
+
+// Écrit deux vecteurs l'un à côté de l'autre dans un fichier .dat
 void write_xy(double *vec, double *x, int *la, char *filename)
 {
     FILE *file;
