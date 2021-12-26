@@ -1,15 +1,8 @@
-/******************************************/
-/* tp2_poisson1D_direct.c                 */
-/* This file contains the main function   */
-/* to solve the Poisson 1D problem        */
-/******************************************/
 #include "lib_poisson1D.h"
 
 int main(int argc, char *argv[])
-/* ** argc: Number of arguments */
-/* ** argv: Values of arguments */
 {
-    //Au = f
+	//Au = f
     int nbpoints, la; //la = n
     int ku, kl, kv, lab; //kl sous-diagonales, 
                          //ku sur-diagonales, 
@@ -17,7 +10,6 @@ int main(int argc, char *argv[])
                          //pour stocker L et U
                          //lab = nb de lignes de AB
     int *ipiv; // tableau des pivot de la factorisation LU
-    int info;  // Retour de dgbsv
     int NRHS; // nb de colonne de f
     double T0, T1; // Condition initiales T(0) = T0 et T(1) = T1
     double *RHS, *EX_SOL, *X; //RHS = f, EX_SOL = solution analytique, grille 1D des valeurs entre T0 et T1 espacé d'un pas constant
@@ -51,73 +43,60 @@ int main(int argc, char *argv[])
 
     AB = (double*)malloc(sizeof(double) * lab * la);
 
-    info = 0;
-
-    /* working array for pivot used by LU Factorization */
+	/* working array for pivot used by LU Factorization */
     ipiv = (int*)calloc(la, sizeof(int));
 
-    int row = 0; //
-
-    if(row == 1) // LAPACK_ROW_MAJOR
+    int row = 0;
+	cblas_dcopy(la, RHS, 1, X, 1);
+    
+    if(row == 1) // CblasRowMajor --> Ne fonctionne pas
     {
+    	kv = 1, ku = 1, kl = 1;
+    	lab = kv+kl+ku+1;
         set_GB_operator_rowMajor_poisson1D(AB, &lab, &la, &kv);
-        write_GB_operator_rowMajor_poisson1D(AB, &lab, &la, "AB_row.dat");
-        //print_rowMajor(AB, &lab, &la);
-        info = LAPACKE_dgbsv(LAPACK_ROW_MAJOR, la, kl, ku, NRHS, AB, la, ipiv, RHS, NRHS);
+        write_GB_operator_rowMajor_poisson1D(AB, &lab, &la, "AB_col1.dat");
+        LAPACKE_dgbsv(LAPACK_ROW_MAJOR, la, kl, ku, NRHS, AB, la, ipiv, X, NRHS);
+
+        kv = 0;
+        lab = kv+kl+ku+1;
+        set_GB_operator_rowMajor_poisson1D(AB, &lab, &la, &kv);
+        write_GB_operator_rowMajor_poisson1D(AB, &lab, &la, "AB_col2.dat");
+
+        // DGBMV
+        cblas_dgbmv(CblasRowMajor, CblasNoTrans, la, la, kl, ku, 1, AB, la, X, 1, -1, RHS, 1);
     } 
-    else // LAPACK_COL_MAJOR
-    { 
+    else // CblasColMajor
+    {
+    	kv = 1, ku = 1, kl = 1;
+    	lab = kv+kl+ku+1;
+    	set_GB_operator_colMajor_poisson1D(AB, &lab, &la, &kv);
+    	write_GB_operator_colMajor_poisson1D(AB, &lab, &la, "AB_col1.dat");
+        LAPACKE_dgbsv(LAPACK_COL_MAJOR, la, kl, ku, NRHS, AB, lab, ipiv, X, la);
+        
+		kv = 0;
+        lab = kv+kl+ku+1;
         set_GB_operator_colMajor_poisson1D(AB, &lab, &la, &kv);
-        write_GB_operator_colMajor_poisson1D(AB, &lab, &la, "AB_col.dat");
-        //print_colMajor(AB, &lab, &la);
-        info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, la, kl, ku, NRHS, AB, lab, ipiv, RHS, la);
-    }    
+        write_GB_operator_colMajor_poisson1D(AB, &lab, &la, "AB_col2.dat");
 
-    printf("\n INFO DGBSV = %d\n", info);
+        // DGBMV
+		cblas_dgbmv(CblasColMajor, CblasNoTrans, la, la, kl, ku, 1, AB, lab, X, 1, -1, RHS, 1);
+    }  
 
-    write_xy(RHS, X, &la, "SOL.dat");
+    printf("\n DGBMV \n");
+
+    write_vec_sci(RHS, &la, "DIFF.dat");
 
     /* Relative residual */
     temp = cblas_ddot(la, RHS, 1, RHS,1); // dotprod entre vecteur
     temp = sqrt(temp);
-    cblas_daxpy(la, -1.0, RHS, 1, EX_SOL, 1); // daxpy
-    relres = cblas_ddot(la, EX_SOL, 1, EX_SOL,1);
-    relres = sqrt(relres);
-    relres = relres / temp;
 
-    printf("\nThe relative residual error is relres = %e\n\n\n",relres);
-    
-
-    
-
-    // kv = 1;
-    // ku = 1;
-    // kl = 1;
-    // lab = kv+kl+ku+1;
-    // set_GB_operator_rowMajor_poisson1D(AB, &lab, &la, &kv);
-
-    // print_rowMajor(AB, &lab, &la);
-    // info = LAPACKE_dgbtrf(LAPACK_ROW_MAJOR, la, la, kl, ku, AB, lab, ipiv);
-    // printf("\n");
-    // print_rowMajor(AB, &lab, &la);
-
-    // printf("\n INFO DGBTRF = %d\n", info);
-    
-
-
-
+    printf("\nNorm of AX - B =  %e\n\n",temp);
 
     free(RHS);
     free(EX_SOL);
     free(X);
     free(AB);
-    free(ipiv);
 
     printf("\n\n--------- End -----------\n");
-
-    /*
-        
-    */
-
-    return 0;
+	return 0;
 }
